@@ -1,57 +1,97 @@
+// js/game.js
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+const ctx    = canvas.getContext('2d');
 
-// Ajusta el canvas al tamaño de la ventana
+// ——— Ajuste de tamaño ———
 function resize() {
-  canvas.width = window.innerWidth;
+  canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resize);
 resize();
 
-// Estado del juego
-let snake = [{ x: 50, y: 50 }];
-let dir = { x: 1, y: 0 };        // dirección inicial
-const grid = 20;                 
-let food = { x: 200, y: 200 };
+// ——— Estado del juego ———
+// Empezamos con la cabeza en el centro
+let head = { x: canvas.width/2, y: canvas.height/2 };
+// El “snake” es un array de segmentos (empezamos con la cabeza sola)
+let snake = [ { ...head } ];
 
-// Control con flechas
-window.addEventListener('keydown', e => {
-  if (e.key === 'ArrowUp')    dir = { x: 0, y: -1 };
-  if (e.key === 'ArrowDown')  dir = { x: 0, y: 1 };
-  if (e.key === 'ArrowLeft')  dir = { x: -1, y: 0 };
-  if (e.key === 'ArrowRight') dir = { x: 1, y: 0 };
+// Cuánto crece al comer
+let growth = 0;
+
+// Velocidad en px/frame
+const speed = 4;
+
+// Creamos la comida en posición aleatoria
+const grid = 20;
+let food = randomFood();
+
+// Guardamos la posición actual del mouse
+let mouse = { x: head.x, y: head.y };
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouse.x = e.clientX - r.left;
+  mouse.y = e.clientY - r.top;
 });
 
-// Bucle principal
-function loop() {
-  // Mover cabeza
-  const head = {
-    x: snake[0].x + dir.x * grid,
-    y: snake[0].y + dir.y * grid
+// ——— Función para colocar comida nueva aleatoria ———
+function randomFood(){
+  return {
+    x: Math.floor(Math.random()*(canvas.width/grid))*grid,
+    y: Math.floor(Math.random()*(canvas.height/grid))*grid
   };
-  snake.unshift(head);
+}
 
-  // Comer comida
-  if (head.x === food.x && head.y === food.y) {
-    food.x = Math.floor(Math.random() * (canvas.width / grid)) * grid;
-    food.y = Math.floor(Math.random() * (canvas.height / grid)) * grid;
+// ——— Lógica de actualización ———
+function update(){
+  // 1) Calculamos vector hacia el mouse
+  let dx = mouse.x - head.x;
+  let dy = mouse.y - head.y;
+  const dist = Math.hypot(dx,dy) || 1;
+  // 2) Movemos la cabeza hacia el mouse a velocidad constante
+  head.x += (dx/dist)*speed;
+  head.y += (dy/dist)*speed;
+
+  // 3) Insertamos la nueva posición al frente del array
+  snake.unshift({ x: head.x, y: head.y });
+
+  // 4) Si no estamos en fase de crecimiento, cortamos la cola
+  if (growth>0) {
+    growth--;
   } else {
     snake.pop();
   }
 
-  // Dibujar fondo
+  // 5) Detectamos colisión con la comida
+  if ( Math.abs(head.x - food.x)<grid/2 && Math.abs(head.y - food.y)<grid/2 ) {
+    growth += 10;        // aumentamos la longitud
+    food = randomFood(); // nueva comida
+  }
+}
+
+// ——— Lógica de dibujo ———
+function draw(){
+  // Fondo
   ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  // Dibujar comida
+  // Comida
   ctx.fillStyle = 'red';
-  ctx.fillRect(food.x, food.y, grid, grid);
+  ctx.beginPath();
+  ctx.arc(food.x+grid/2, food.y+grid/2, grid/2, 0, Math.PI*2);
+  ctx.fill();
 
-  // Dibujar gusano
+  // Gusano
   ctx.fillStyle = 'lime';
-  snake.forEach(s => ctx.fillRect(s.x, s.y, grid, grid));
+  snake.forEach(seg => {
+    ctx.fillRect(seg.x-grid/2, seg.y-grid/2, grid, grid);
+  });
+}
 
-  setTimeout(loop, 100);
+// ——— Bucle principal ———
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
 }
 loop();
