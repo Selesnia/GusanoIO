@@ -26,30 +26,13 @@ const speed = 4;
 const grid = 20;
 let food = randomFood();
 
-// Guardamos la posición actual del mouse
-let mouse = { x: head.x, y: head.y };
-canvas.addEventListener('mousemove', e => {
-  const r = canvas.getBoundingClientRect();
-  mouse.x = e.clientX - r.left;
-  mouse.y = e.clientY - r.top;
-});
+// ——— Captura de puntero (mouse/touch/stylus) ———
 let pointer = { x: head.x, y: head.y };
-
-// Mouse
-canvas.addEventListener('mousemove', e => {
+canvas.addEventListener('pointermove', e => {
   const r = canvas.getBoundingClientRect();
   pointer.x = e.clientX - r.left;
   pointer.y = e.clientY - r.top;
 });
-
-// Touch (móvil)
-canvas.addEventListener('touchmove', e => {
-  e.preventDefault(); // evita scroll de la página
-  const r = canvas.getBoundingClientRect();
-  // usamos siempre el primer dedo (touches[0])
-  pointer.x = e.touches[0].clientX - r.left;
-  pointer.y = e.touches[0].clientY - r.top;
-}, { passive: false });
 
 // ——— Función para colocar comida nueva aleatoria ———
 function randomFood(){
@@ -61,26 +44,30 @@ function randomFood(){
 
 // ——— Lógica de actualización ———
 function update(){
-  // 1) Calculamos vector hacia el mouse
-  let dx = mouse.x - head.x;
-  let dy = mouse.y - head.y;
-  const dist = Math.hypot(dx,dy) || 1;
-  // 2) Movemos la cabeza hacia el mouse a velocidad constante
-  head.x += (dx/dist)*speed;
-  head.y += (dy/dist)*speed;
+  // 1) Calculamos vector hacia el puntero
+  let dx = pointer.x - head.x;
+  let dy = pointer.y - head.y;
+  const dist = Math.hypot(dx, dy) || 1;
+
+  // 2) Movemos la cabeza hacia el puntero a velocidad constante
+  head.x += (dx/dist) * speed;
+  head.y += (dy/dist) * speed;
 
   // 3) Insertamos la nueva posición al frente del array
   snake.unshift({ x: head.x, y: head.y });
 
   // 4) Si no estamos en fase de crecimiento, cortamos la cola
-  if (growth>0) {
+  if (growth > 0) {
     growth--;
   } else {
     snake.pop();
   }
 
   // 5) Detectamos colisión con la comida
-  if ( Math.abs(head.x - food.x)<grid/2 && Math.abs(head.y - food.y)<grid/2 ) {
+  if (
+    Math.abs(head.x - food.x) < grid/2 &&
+    Math.abs(head.y - food.y) < grid/2
+  ) {
     growth += 10;        // aumentamos la longitud
     food = randomFood(); // nueva comida
   }
@@ -90,18 +77,23 @@ function update(){
 function draw(){
   // Fondo
   ctx.fillStyle = '#111';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // Comida
   ctx.fillStyle = 'red';
   ctx.beginPath();
-  ctx.arc(food.x+grid/2, food.y+grid/2, grid/2, 0, Math.PI*2);
+  ctx.arc(food.x + grid/2, food.y + grid/2, grid/2, 0, Math.PI*2);
   ctx.fill();
 
   // Gusano
   ctx.fillStyle = 'lime';
   snake.forEach(seg => {
-    ctx.fillRect(seg.x-grid/2, seg.y-grid/2, grid, grid);
+    ctx.fillRect(
+      seg.x - grid/2,
+      seg.y - grid/2,
+      grid,
+      grid
+    );
   });
 }
 
