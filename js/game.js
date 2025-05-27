@@ -33,6 +33,23 @@ canvas.addEventListener('mousemove', e => {
   mouse.x = e.clientX - r.left;
   mouse.y = e.clientY - r.top;
 });
+let pointer = { x: head.x, y: head.y };
+
+// Mouse
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  pointer.x = e.clientX - r.left;
+  pointer.y = e.clientY - r.top;
+});
+
+// Touch (móvil)
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault(); // evita scroll de la página
+  const r = canvas.getBoundingClientRect();
+  // usamos siempre el primer dedo (touches[0])
+  pointer.x = e.touches[0].clientX - r.left;
+  pointer.y = e.touches[0].clientY - r.top;
+}, { passive: false });
 
 // ——— Función para colocar comida nueva aleatoria ———
 function randomFood(){
