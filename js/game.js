@@ -1,5 +1,3 @@
-const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-// ——— Estilos básicos ———
 // js/game.js
 const canvas = document.getElementById('game');
 const ctx    = canvas.getContext('2d');
@@ -12,104 +10,33 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+// ——— Detectamos si es móvil ———
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
 // ——— Estado del juego ———
-// Empezamos con la cabeza en el centro
 let head = { x: canvas.width/2, y: canvas.height/2 };
-// El “snake” es un array de segmentos (empezamos con la cabeza sola)
 let snake = [ { ...head } ];
-
-// Cuánto crece al comer
 let growth = 0;
-
-// Velocidad en px/frame
 const speed = 4;
+const grid  = 20;
+let food   = randomFood();
 
-// Creamos la comida en posición aleatoria
-const grid = 20;
-let food = randomFood();
+// ——— Variables de control ———
+let pointer = { x: head.x, y: head.y }; // para desktop
+let joyX = 0, joyY = 0;                  // para móvil
 
-// ——— Captura de puntero (mouse/touch/stylus) ———
-let pointer = { x: head.x, y: head.y };
-canvas.addEventListener('pointermove', e => {
-  const r = canvas.getBoundingClientRect();
-  pointer.x = e.clientX - r.left;
-  pointer.y = e.clientY - r.top;
-});
-
-// ——— Función para colocar comida nueva aleatoria ———
-function randomFood(){
-  return {
-    x: Math.floor(Math.random()*(canvas.width/grid))*grid,
-    y: Math.floor(Math.random()*(canvas.height/grid))*grid
-  };
-}
-
-// ——— Lógica de actualización ———
-function update(){
-  // 1) Calculamos vector hacia el puntero
-  let dx = pointer.x - head.x;
-  let dy = pointer.y - head.y;
-  const dist = Math.hypot(dx, dy) || 1;
-
-  // 2) Movemos la cabeza hacia el puntero a velocidad constante
-  head.x += (dx/dist) * speed;
-  head.y += (dy/dist) * speed;
-
-  // 3) Insertamos la nueva posición al frente del array
-  snake.unshift({ x: head.x, y: head.y });
-
-  // 4) Si no estamos en fase de crecimiento, cortamos la cola
-  if (growth > 0) {
-    growth--;
-  } else {
-    snake.pop();
-  }
-
-  // 5) Detectamos colisión con la comida
-  if (
-    Math.abs(head.x - food.x) < grid/2 &&
-    Math.abs(head.y - food.y) < grid/2
-  ) {
-    growth += 10;        // aumentamos la longitud
-    food = randomFood(); // nueva comida
-  }
-}
-
-// ——— Lógica de dibujo ———
-function draw(){
-  // Fondo
-  ctx.fillStyle = '#111';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Comida
-  ctx.fillStyle = 'red';
-  ctx.beginPath();
-  ctx.arc(food.x + grid/2, food.y + grid/2, grid/2, 0, Math.PI*2);
-  ctx.fill();
-
-  // Gusano
-  ctx.fillStyle = 'lime';
-  snake.forEach(seg => {
-    ctx.fillRect(
-      seg.x - grid/2,
-      seg.y - grid/2,
-      grid,
-      grid
-    );
+// ——— Pointer Events (sólo si NO es móvil) ———
+if (!isMobile) {
+  canvas.addEventListener('pointermove', e => {
+    const r = canvas.getBoundingClientRect();
+    pointer.x = e.clientX - r.left;
+    pointer.y = e.clientY - r.top;
   });
 }
 
-// ——— Bucle principal ———
-function loop(){
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-loop();
-let joyX = 0, joyY = 0;
-
+// ——— Joystick en móvil ———
 if (isMobile) {
-  // 1) Crear la base del joystick
+  // crear HTML
   const joyBase = document.createElement('div');
   joyBase.id = 'joystick';
   joyBase.innerHTML = '<div class="stick"></div>';
@@ -117,7 +44,7 @@ if (isMobile) {
 
   const stick = joyBase.querySelector('.stick');
 
-  // 2) Eventos touch en la base
+  // touchmove en el joystick
   joyBase.addEventListener('touchmove', e => {
     e.preventDefault();
     const t = e.touches[0];
@@ -129,11 +56,79 @@ if (isMobile) {
     const mag = Math.hypot(dx, dy) || 1;
     if (mag > 1) { dx /= mag; dy /= mag; }
     joyX = dx; joyY = dy;
-    stick.style.transform = `translate(${dx*25}px, ${dy*25}px)`;
+    stick.style.transform = `translate(${dx*25}px,${dy*25}px)`;
   }, { passive: false });
 
+  // al soltar el dedo vuelve al centro
   joyBase.addEventListener('touchend', () => {
     joyX = joyY = 0;
     stick.style.transform = `translate(0,0)`;
   });
 }
+
+// ——— Alimentar comida aleatoria ———
+function randomFood(){
+  return {
+    x: Math.floor(Math.random() * (canvas.width/grid)) * grid,
+    y: Math.floor(Math.random() * (canvas.height/grid)) * grid
+  };
+}
+
+// ——— Lógica de actualización ———
+function update(){
+  // elegimos vector según plataforma
+  let dx, dy;
+  if (isMobile) {
+    dx = joyX;
+    dy = joyY;
+  } else {
+    dx = pointer.x - head.x;
+    dy = pointer.y - head.y;
+  }
+
+  const dist = Math.hypot(dx, dy) || 1;
+  head.x += (dx/dist) * speed;
+  head.y += (dy/dist) * speed;
+
+  snake.unshift({ x: head.x, y: head.y });
+  if (growth > 0) {
+    growth--;
+  } else {
+    snake.pop();
+  }
+
+  // comer comida
+  if (
+    Math.abs(head.x - food.x) < grid/2 &&
+    Math.abs(head.y - food.y) < grid/2
+  ) {
+    growth += 10;
+    food = randomFood();
+  }
+}
+
+// ——— Lógica de dibujo ———
+function draw(){
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // comida
+  ctx.fillStyle = 'red';
+  ctx.beginPath();
+  ctx.arc(food.x + grid/2, food.y + grid/2, grid/2, 0, Math.PI*2);
+  ctx.fill();
+
+  // gusano
+  ctx.fillStyle = 'lime';
+  snake.forEach(seg => {
+    ctx.fillRect(seg.x-grid/2, seg.y-grid/2, grid, grid);
+  });
+}
+
+// ——— Bucle ———
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
