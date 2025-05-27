@@ -1,3 +1,5 @@
+const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+// ——— Estilos básicos ———
 // js/game.js
 const canvas = document.getElementById('game');
 const ctx    = canvas.getContext('2d');
@@ -104,3 +106,34 @@ function loop(){
   requestAnimationFrame(loop);
 }
 loop();
+let joyX = 0, joyY = 0;
+
+if (isMobile) {
+  // 1) Crear la base del joystick
+  const joyBase = document.createElement('div');
+  joyBase.id = 'joystick';
+  joyBase.innerHTML = '<div class="stick"></div>';
+  document.body.appendChild(joyBase);
+
+  const stick = joyBase.querySelector('.stick');
+
+  // 2) Eventos touch en la base
+  joyBase.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const r = joyBase.getBoundingClientRect();
+    const cx = r.left + r.width/2;
+    const cy = r.top  + r.height/2;
+    let dx = (t.clientX - cx)/(r.width/2);
+    let dy = (t.clientY - cy)/(r.height/2);
+    const mag = Math.hypot(dx, dy) || 1;
+    if (mag > 1) { dx /= mag; dy /= mag; }
+    joyX = dx; joyY = dy;
+    stick.style.transform = `translate(${dx*25}px, ${dy*25}px)`;
+  }, { passive: false });
+
+  joyBase.addEventListener('touchend', () => {
+    joyX = joyY = 0;
+    stick.style.transform = `translate(0,0)`;
+  });
+}
